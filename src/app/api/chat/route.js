@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 const API_KEY = "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";
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const PRIMARY_MODEL = "google/gemini-3-flash-preview";
