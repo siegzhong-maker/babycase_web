@@ -11,7 +11,7 @@ export default function SopWizard({ data }) {
     setCurrentStep(-1);
   }, [data]);
 
-  if (!data) return null;
+  if (!data || !Array.isArray(data.steps) || data.steps.length === 0) return null;
 
   const { title, preps, steps } = data;
 
