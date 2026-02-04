@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { Send, User, Bot, Sparkles } from 'lucide-react';
+import { Send, User, Bot, Sparkles, BookOpen } from 'lucide-react';
 import SopWizard from '@/components/SopWizard';
 import WorryWall from '@/components/WorryWall';
 import ClarifyCard from '@/components/ClarifyCard';
+import BabyProfileModal, { loadProfile, saveProfile } from '@/components/BabyProfileModal';
+import { calculateAge } from '@/utils/age';
 import { KNOWLEDGE_BASE } from '@/data/knowledge_base';
 
 const GENERIC_FALLBACK_SUGGESTIONS = ["宝宝多大？", "有哪些症状？"];
@@ -44,7 +46,18 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [worryTags, setWorryTags] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
+  const [profile, setProfile] = useState({ name: '糯米', gender: '男孩', birth: '2024-11-20' });
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    setProfile(loadProfile());
+  }, []);
+
+  const handleSaveProfile = (next) => {
+    setProfile(next);
+    saveProfile(next);
+  };
 
   // Load Tags
   useEffect(() => {
@@ -90,6 +103,9 @@ export default function Home() {
 你是一位拥有20年临床护理经验的“金牌母婴护理专家”，专注于孕期（-1岁）到幼儿3岁的母婴护理。
 你的特点是专业、温暖、耐心且极其严谨。你不是医生，不进行医疗诊断，但在护理建议上比通用AI更细致、更具实操性。
 
+# 当前宝宝档案
+用户已录入：宝宝昵称 ${profile.name}，${profile.gender}，出生 ${profile.birth}（约${calculateAge(profile.birth)}）。回复时请聚焦该宝宝，可自然称呼其昵称，并根据月龄/年龄给出适宜建议。
+
 # Goal
 你的目标是缓解用户的育儿焦虑，通过专业的询问引导出用户的真实情况，提供针对性的护理建议，并鼓励用户持续互动。
 
@@ -126,11 +142,14 @@ export default function Home() {
 - **操作定义必含：** 若涉及**可数操作**（如胎动、喂奶次数、疫苗接种、换尿布等），必须明确写出「怎么算一次」的说明。例如：胎动「连续动算一次，停顿几分钟后再动算另一次」；水痘疫苗「接种本每记录一剂算一针」。疫苗/接种类务必含「怎么算一针」，这是用户实操时最难以估计的内容。
 - **结构化输出：** 使用 Emoji 和分点，降低阅读负担。
 
-## Wizard 模式 (SOP)
-当用户询问**具体操作流程**（如：怎么做排气操、怎么拍嗝、新生儿洗澡流程、换尿布步骤、抚触手法）时，必须返回 "action": "sop"，并提供完整 sopData：
-- title：操作名称（如「排气操操作向导」）
-- preps：准备清单，具体可执行（如「室温 24-26 度」「宝宝清醒、不饿不困」）
-- steps：步骤数组，每项含 title 和 desc，描述简练、适合手机阅读
+## Wizard 模式 (SOP) - 卡片式分步展示
+当回答包含**多条结构化建议**时，必须返回 "action": "sop"，以卡片形式分步展示，便于用户逐步查看。适用场景包括：
+1. **具体操作流程**：排气操、拍嗝、洗澡、换尿布、抚触等
+2. **居家护理建议**：感冒护理、发烧护理、吐奶护理等（多条建议拆成 steps，不要堆在 reply 里）
+sopData 结构：
+- title：操作/护理名称（如「宝宝感冒居家护理」）
+- preps：准备/就医指征（如「发烧超过38.5°C需就医」；可为空数组）
+- steps：步骤数组，每项含 title 和 desc，描述简练、适合手机卡片阅读。reply 中简要概括，详细内容放在 steps 里
 
 ## Step 3: 预测性关怀与引导 (The Post-Ask Logic)
 - **每一轮回复都必须包含 suggestions**，至少 2 个，便于用户点选追问。
@@ -274,8 +293,15 @@ WARNING: ${matchedCase.warning}
       <div className="w-full max-w-md bg-white min-h-screen shadow-2xl flex flex-col relative">
         
         {/* Header */}
-        <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 px-4 py-3 text-center">
+        <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 px-4 py-3 flex items-center justify-between">
           <h1 className="font-bold text-lg text-gray-800">兜知道</h1>
+          <button
+            onClick={() => setShowProfileModal(true)}
+            className="p-2 -m-2 text-gray-500 hover:text-emerald-600 rounded-full transition-colors"
+            title="兜兜小本"
+          >
+            <BookOpen size={22} />
+          </button>
         </header>
 
         {/* Disclaimer */}
@@ -389,6 +415,12 @@ WARNING: ${matchedCase.warning}
           </div>
         </div>
 
+        <BabyProfileModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          profile={profile}
+          onSave={handleSaveProfile}
+        />
       </div>
     </div>
   );
