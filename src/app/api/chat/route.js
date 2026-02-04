@@ -50,6 +50,12 @@ export async function POST(request) {
       console.log(`Trying Primary Model: ${PRIMARY_MODEL}`);
       response = await callOpenRouter(PRIMARY_MODEL, messages, API_KEY);
     } catch (primaryError) {
+      // CRITICAL: If it's an Auth error (Invalid Key), fail immediately. Do NOT retry.
+      if (primaryError.message.includes("Invalid API Key")) {
+         console.error("Auth Error (Primary):", primaryError.message);
+         return NextResponse.json({ error: primaryError.message }, { status: 401 });
+      }
+
       console.warn(`Primary Model failed: ${primaryError.message}. Switching to Fallback...`);
       // Attempt 2: Fallback Model
       try {
@@ -57,7 +63,14 @@ export async function POST(request) {
         response = await callOpenRouter(FALLBACK_MODEL, messages, API_KEY);
       } catch (fallbackError) {
         console.error("Fallback Model also failed:", fallbackError);
-        return NextResponse.json({ error: 'AI Service Temporarily Unavailable' }, { status: 500 });
+        
+        // Check for Auth error again just in case
+        if (fallbackError.message.includes("Invalid API Key")) {
+             return NextResponse.json({ error: fallbackError.message }, { status: 401 });
+        }
+
+        // Return the actual error reason instead of generic message
+        return NextResponse.json({ error: `AI Service Unavailable: ${fallbackError.message}` }, { status: 500 });
       }
     }
 
