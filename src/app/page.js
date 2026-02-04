@@ -206,11 +206,7 @@ WARNING: ${matchedCase.warning}
         clarifyOptions: aiData.clarifyOptions
       };
 
-      setMessages(prev => {
-        const newMsgs = [...prev];
-        newMsgs[newMsgs.length - 1] = aiMsg;
-        return newMsgs;
-      });
+      setMessages(prev => [...prev, aiMsg]);
 
       // ALWAYS update suggestions if they exist in AI response, otherwise clear them or keep old ones?
       // Better to clear old suggestions if AI provides new ones or provides none (to avoid stale context)
