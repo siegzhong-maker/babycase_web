@@ -167,36 +167,89 @@ WARNING: ${matchedCase.warning}
         { role: 'user', content: text }
       ];
 
-      // 3. Call API
+      // 3. Call API with Streaming
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: apiMessages })
       });
 
-      const data = await response.json();
-      
-      if (data.error) throw new Error(data.error);
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Request failed');
+      }
 
-      // 4. Parse Response
-      const aiData = safeParseJSON(data.content);
+      // 4. Handle Streaming Response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let fullContent = '';
+      
+      // Temporary AI message for streaming effect
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        reply: "正在思考...", 
+        action: 'none'
+      }]);
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunkValue = decoder.decode(value, { stream: true });
+        
+        // Parse SSE data: lines starting with "data: "
+        const lines = chunkValue.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const data = JSON.parse(line.slice(6));
+              const content = data.choices?.[0]?.delta?.content || '';
+              fullContent += content;
+              
+              // Update UI with partial content (optional, but since we expect JSON, maybe just show dots)
+              // For now, let's just wait for full content because we need to parse JSON
+            } catch (e) {
+              // ignore parse errors for partial chunks
+            }
+          }
+        }
+      }
+
+      // 5. Parse Final JSON
+      const aiData = safeParseJSON(fullContent);
       
       const aiMsg = {
         role: 'assistant',
-        reply: aiData.reply || "阿姨有点忙，没听清，能再说一遍吗？",
+        reply: aiData.reply || fullContent || "阿姨有点忙，没听清，能再说一遍吗？", // Fallback to raw text if JSON parse fails
         action: aiData.action,
         sopData: aiData.sopData,
-        clarifyOptions: aiData.clarifyOptions // Add this
+        clarifyOptions: aiData.clarifyOptions
       };
 
-      setMessages(prev => [...prev, aiMsg]);
+      // Replace the "Thinking..." message with the final message
+      setMessages(prev => {
+        const newMsgs = [...prev];
+        newMsgs[newMsgs.length - 1] = aiMsg;
+        return newMsgs;
+      });
+
       if (aiData.suggestions) setSuggestions(aiData.suggestions);
 
     } catch (error) {
       console.error(error);
+      
+      let errorReply = "网络开小差了，兜兜没听清 😣\n请检查网络后重试。";
+      
+      // 如果是 API Key 无效的错误，给出明确提示
+      if (error.message.includes("Invalid API Key") || error.message.includes("User not found")) {
+          errorReply = "⚠️ 系统提示：API Key 无效或已过期。\n\n请在后台配置正确的 OPENROUTER_API_KEY 环境变量。";
+      } else if (error.message.includes("AI Service Temporarily Unavailable")) {
+          errorReply = "⚠️ AI 服务暂时不可用，请稍后重试。\n(可能是模型服务不稳定)";
+      }
+
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        reply: "网络开小差了，兜兜没听清 😣\n请检查网络后重试。",
+        reply: errorReply,
         action: 'none'
       }]);
     } finally {
