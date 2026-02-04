@@ -187,20 +187,26 @@ WARNING: ${matchedCase.warning}
       
       const aiMsg = {
         role: 'assistant',
-        reply: aiData.reply || fullContent || "阿姨有点忙，没听清，能再说一遍吗？", // Fallback to raw text if JSON parse fails
+        reply: aiData.reply || fullContent || "阿姨有点忙，没听清，能再说一遍吗？", 
         action: aiData.action,
         sopData: aiData.sopData,
         clarifyOptions: aiData.clarifyOptions
       };
 
-      // Replace the "Thinking..." message with the final message
       setMessages(prev => {
         const newMsgs = [...prev];
         newMsgs[newMsgs.length - 1] = aiMsg;
         return newMsgs;
       });
 
-      if (aiData.suggestions) setSuggestions(aiData.suggestions);
+      // ALWAYS update suggestions if they exist in AI response, otherwise clear them or keep old ones?
+      // Better to clear old suggestions if AI provides new ones or provides none (to avoid stale context)
+      // But user said "first dialog has, second has none".
+      if (aiData.suggestions && Array.isArray(aiData.suggestions) && aiData.suggestions.length > 0) {
+          setSuggestions(aiData.suggestions);
+      } else {
+          setSuggestions([]); // Clear suggestions if AI didn't provide any (e.g. clarification)
+      }
 
     } catch (error) {
       console.error(error);
@@ -256,7 +262,7 @@ WARNING: ${matchedCase.warning}
 
         {/* Chat Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
-          {/* Welcome Worry Wall (Only show if history is short) */}
+          {/* Welcome Worry Wall (Show only when no messages or just welcome message) */}
           {messages.length <= 1 && (
             <WorryWall tags={worryTags} onTagClick={handleTagClick} />
           )}
