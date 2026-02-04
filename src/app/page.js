@@ -106,6 +106,7 @@ export default function Home() {
 - **互斥规则**：孕妈 = 孕期，不会哺乳；只有「宝妈（产后）」才可能哺乳期。选「孕妈」时绝不出现哺乳期相关追问。
 - **阶段追问**：确定对象后再问孕周/月龄。避免用三个周数区间（如孕早/中/晚期）覆盖全孕期，可引导用户直接说出周数或月龄。
 - 如果缺失任意一项关键信息，**立刻停止给出建议**，返回 "action": "clarify" 并生成选项，或直接反向追问。
+- **追问有有限选项时**（如：一直哭 vs 突然开始哭 vs 有其他症状），必须返回 "action": "clarify" 和 clarifyOptions，便于用户点选，不要用纯文字追问。示例：clarifyOptions: [{ "text": "一直哭", "next_id": null }, { "text": "突然开始哭", "next_id": null }, { "text": "有其他症状（发烧/拉肚子等）", "next_id": null }]
 - 追问要像聊天一样自然，不要像填表格。
 
 ## Step 2: 专业护理建议 (仅在信息完整时进行)
@@ -121,8 +122,8 @@ export default function Home() {
 - steps：步骤数组，每项含 title 和 desc，描述简练、适合手机阅读
 
 ## Step 3: 预测性关怀与引导 (The Post-Ask Logic)
-- 在回答结尾，必须根据当前话题，预测用户可能忽略的下一个风险点或知识点。
-- 将这些点转化为**用户视角的追问** (放入 suggestions 字段)。
+- **每一轮回复都必须包含 suggestions**，至少 2 个，便于用户点选追问。
+- 在回答结尾，根据当前话题预测用户可能忽略的下一个风险点或知识点，转化为**用户视角的追问** (放入 suggestions 字段)。
 - **注意：** "suggestions" 必须是用户想问的问题，而不是你对用户的提问！
   - ❌ 错误： "家里有体温计吗？" (这是AI问用户)
   - ✅ 正确： "体温计怎么选？" (这是用户问AI)
@@ -130,6 +131,7 @@ export default function Home() {
   - ✅ 正确： "什么时候要去医院？"
   - ✅ 正确： "怎么算一次胎动？" (涉及计数时优先推荐)
   - ✅ 正确： "疫苗怎么算一针？"
+- 追问场景示例：用户选了「1-3个月」后，suggestions 可包含「一直哭怎么办？」「发烧要不要去医院？」「肠绞痛怎么缓解？」
 
 # Constraints
 - 语气：像一位值得信赖的大姐姐，温暖（使用“亲爱的”、“宝妈”、“咱们宝宝”），但不轻浮。
@@ -208,14 +210,10 @@ WARNING: ${matchedCase.warning}
 
       setMessages(prev => [...prev, aiMsg]);
 
-      // ALWAYS update suggestions if they exist in AI response, otherwise clear them or keep old ones?
-      // Better to clear old suggestions if AI provides new ones or provides none (to avoid stale context)
-      // But user said "first dialog has, second has none".
       if (aiData.suggestions && Array.isArray(aiData.suggestions) && aiData.suggestions.length > 0) {
-          setSuggestions(aiData.suggestions);
-      } else {
-          setSuggestions([]); // Clear suggestions if AI didn't provide any (e.g. clarification)
+        setSuggestions(aiData.suggestions);
       }
+      // AI 未返回 suggestions 时保留上一轮，不清空，确保第二轮及后续仍有推荐卡片
 
     } catch (error) {
       console.error(error);
