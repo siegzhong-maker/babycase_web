@@ -7,6 +7,8 @@ import WorryWall from '@/components/WorryWall';
 import ClarifyCard from '@/components/ClarifyCard';
 import { KNOWLEDGE_BASE } from '@/data/knowledge_base';
 
+const DEFAULT_SUGGESTIONS = ["发烧多少度要去医院？", "可以继续喂奶吗？", "什么时候需要就医？"];
+
 // Helper for JSON parsing
 function safeParseJSON(str) {
   try { return JSON.parse(str); } catch (e) {}
@@ -212,8 +214,11 @@ WARNING: ${matchedCase.warning}
 
       if (aiData.suggestions && Array.isArray(aiData.suggestions) && aiData.suggestions.length > 0) {
         setSuggestions(aiData.suggestions);
+      } else if (matchedCase?.fallback_suggestions?.length > 0) {
+        setSuggestions(matchedCase.fallback_suggestions);
+      } else {
+        setSuggestions(DEFAULT_SUGGESTIONS);
       }
-      // AI 未返回 suggestions 时保留上一轮，不清空，确保第二轮及后续仍有推荐卡片
 
     } catch (error) {
       console.error(error);
@@ -325,7 +330,7 @@ WARNING: ${matchedCase.warning}
           <div ref={messagesEndRef} className="h-4" />
         </div>
 
-        {/* Suggestions */}
+        {/* Suggestions - 提问后推荐 */}
         {!isLoading && suggestions.length > 0 && (
           <div className="px-4 pb-2">
              <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium mb-2 px-1">
@@ -344,6 +349,11 @@ WARNING: ${matchedCase.warning}
                ))}
              </div>
           </div>
+        )}
+
+        {/* 提问前推荐：大家都在问（对话中常驻） */}
+        {messages.length > 1 && (
+          <WorryWall tags={worryTags} onTagClick={handleTagClick} compact />
         )}
 
         {/* Input Area */}

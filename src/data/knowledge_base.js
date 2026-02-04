@@ -37,7 +37,8 @@ export const KNOWLEDGE_BASE = [
     tags: [], // Tags moved to ambiguous case to force clarification
     display_tag: "",
     solution: "宝宝吐奶护理SOP：\n1. 【体位】喂奶时头部垫高，不要平躺。\n2. 【拍嗝】喂到一半和喂完后，必须竖抱拍嗝15-20分钟。\n3. 【防窒息】如果平躺时吐奶，立刻让宝宝侧身，清理口腔，防止吸入气管。",
-    warning: "如果呈喷射状呕吐（喷出半米远），且精神萎靡、体重不增，必须去医院排除幽门狭窄。"
+    warning: "如果呈喷射状呕吐（喷出半米远），且精神萎靡、体重不增，必须去医院排除幽门狭窄。",
+    fallback_suggestions: ["怎么区分溢奶和吐奶？", "需要拍嗝多久？"]
   },
   {
     id: "case_colic",
@@ -45,7 +46,8 @@ export const KNOWLEDGE_BASE = [
     tags: ["肠绞痛", "哭闹", "黄昏闹", "一直哭"],
     display_tag: "😭 傍晚一直哭",
     solution: "这是典型的肠绞痛/黄昏闹：\n1. 【飞机抱】让宝宝趴在你的小臂上，压迫腹部缓解胀气。\n2. 【排气操】清醒时多顺时针揉肚子，做蹬腿动作。\n3. 【白噪音】开吹风机或者吸尘器的声音，能让他平静下来。",
-    warning: "如果哭声尖锐、伴有果酱样大便，需立即就医排除肠套叠。"
+    warning: "如果哭声尖锐、伴有果酱样大便，需立即就医排除肠套叠。",
+    fallback_suggestions: ["肠绞痛多久能好？", "飞机抱怎么做？"]
   },
 
   // --- 疫苗/接种相关 ---
@@ -91,7 +93,8 @@ export const KNOWLEDGE_BASE = [
     tags: [],
     display_tag: "",
     solution: "孕妈感冒（孕期）：\n1. 【多休息】保证睡眠，多喝水。\n2. 【物理降温】低烧可温水擦浴，避免捂汗。\n3. 【用药】发烧难受可用对乙酰氨基酚（泰诺），孕期相对安全；避免布洛芬。\n4. 【就医】高烧超过38.5度或持续3天以上，请就医并告知医生孕周。",
-    warning: "孕期用药务必遵医嘱，勿自行服用复方感冒药。"
+    warning: "孕期用药务必遵医嘱，勿自行服用复方感冒药。",
+    fallback_suggestions: ["孕期发烧能吃药吗？", "发烧多少度要去医院？"]
   },
   {
     id: "case_cold_baby",
@@ -99,7 +102,8 @@ export const KNOWLEDGE_BASE = [
     tags: [], // 仅通过追问触发
     display_tag: "",
     solution: "宝宝感冒护理SOP：\n1. 【观察】精神好、能吃能玩，通常不需要去医院，在家护理即可。\n2. 【清理鼻腔】用海盐水喷雾清理鼻涕，缓解鼻塞。\n3. 【加湿】保持室内湿度50-60%。\n4. 【多喝水/奶】稀释痰液，帮助排毒。",
-    warning: "如果体温超过38.5度（3个月以下超过38度），或出现呼吸急促、精神差，请立即就医。"
+    warning: "如果体温超过38.5度（3个月以下超过38度），或出现呼吸急促、精神差，请立即就医。",
+    fallback_suggestions: ["发烧会烧坏脑子吗？", "什么时候要去医院？", "物理降温怎么做？"]
   },
   {
     id: "case_cold_mom",
@@ -107,7 +111,8 @@ export const KNOWLEDGE_BASE = [
     tags: [],
     display_tag: "",
     solution: "宝妈感冒（特别是哺乳期）：\n1. 【戴口罩】接触宝宝时务必戴口罩，洗手。\n2. 【继续哺乳】普通感冒可以继续喂奶，抗体还能传给宝宝。\n3. 【用药】如果发烧难受，可以用对乙酰氨基酚（泰诺），这是哺乳期安全的。\n4. 【休息】多喝水，多睡觉。",
-    warning: "如果高烧不退或症状加重，请就医并告知医生自己在哺乳期。"
+    warning: "如果高烧不退或症状加重，请就医并告知医生自己在哺乳期。",
+    fallback_suggestions: ["哺乳期发烧能吃药吗？", "发烧多少度要去医院？", "可以继续喂奶吗？"]
   },
 
   // --- 睡眠相关 (Sleep) ---
@@ -131,7 +136,8 @@ export const KNOWLEDGE_BASE = [
     tags: [], // Tags moved to ambiguous case
     display_tag: "",
     solution: "宝宝夜醒频繁（排除饿和尿）：\n1. 【白天】拉开窗帘，多消耗体力，每次小睡不超过2小时。\n2. 【睡前】建立固定程序（洗澡-抚触-关灯）。\n3. 【接觉】半夜醒了不要马上抱，先轻拍嘘声安抚，让他学会自己接觉。",
-    warning: ""
+    warning: "",
+    fallback_suggestions: ["怎么建立睡前仪式？", "夜醒要不要马上抱？"]
   },
   {
     id: "case_pregnancy_insomnia",
