@@ -7,6 +7,8 @@ import WorryWall from '@/components/WorryWall';
 import ClarifyCard from '@/components/ClarifyCard';
 import { KNOWLEDGE_BASE } from '@/data/knowledge_base';
 
+const GENERIC_FALLBACK_SUGGESTIONS = ["宝宝多大？", "有哪些症状？"];
+
 // Helper for JSON parsing
 function safeParseJSON(str) {
   try { return JSON.parse(str); } catch (e) {}
@@ -103,7 +105,7 @@ export default function Home() {
 **追问顺序与逻辑（必须严格遵守）：**
 - **对象优先**：先问「是孕妈本人、宝宝还是宝妈（产后）」？clarifyOptions 使用这三个互斥选项。
 - **互斥规则**：孕妈 = 孕期，不会哺乳；只有「宝妈（产后）」才可能哺乳期。选「孕妈」时绝不出现哺乳期相关追问。
-- **阶段追问**：确定对象后再问孕周/月龄。避免用三个周数区间（如孕早/中/晚期）覆盖全孕期，可引导用户直接说出周数或月龄。
+- **阶段追问**：确定对象后再问孕周/月龄。**禁止**用「孕早期/孕中期/孕晚期」三档追问孕周（覆盖面太小），改为自然引导用户直接说出周数（如「您现在孕多少周？」）。追问宝宝月龄时，若有明确区间（如 0-3月、3-6月、6月以上），必须返回 action: "clarify" 和 clarifyOptions，便于点选。
 - 如果缺失任意一项关键信息，**立刻停止给出建议**，返回 "action": "clarify" 并生成选项，或直接反向追问。
 - **追问有有限选项时**（如：一直哭 vs 突然开始哭 vs 有其他症状），必须返回 "action": "clarify" 和 clarifyOptions，便于用户点选，不要用纯文字追问。示例：clarifyOptions: [{ "text": "一直哭", "next_id": null }, { "text": "突然开始哭", "next_id": null }, { "text": "有其他症状（发烧/拉肚子等）", "next_id": null }]
 - 追问要像聊天一样自然，不要像填表格。
@@ -111,7 +113,7 @@ export default function Home() {
 ## Step 2: 专业护理建议 (仅在信息完整时进行)
 - **区分医疗与护理：** 明确告知哪些情况需要立刻去医院，哪些可以在家观察。
 - **实操性强：** 不要只说“注意保暖”，要说“室温控制在24-26度，穿一件连体衣加睡袋”。
-- **操作定义必含：** 若涉及**可数操作**（如胎动、喂奶次数、疫苗接种、换尿布等），必须明确写出「怎么算一次」的说明。例如：胎动「连续动算一次，停顿几分钟后再动算另一次」；疫苗「一剂算一次」。这是用户实操时最难以估计的内容，务必在回答中主动覆盖。
+- **操作定义必含：** 若涉及**可数操作**（如胎动、喂奶次数、疫苗接种、换尿布等），必须明确写出「怎么算一次」的说明。例如：胎动「连续动算一次，停顿几分钟后再动算另一次」；水痘疫苗「接种本每记录一剂算一针」。疫苗/接种类务必含「怎么算一针」，这是用户实操时最难以估计的内容。
 - **结构化输出：** 使用 Emoji 和分点，降低阅读负担。
 
 ## Wizard 模式 (SOP)
@@ -209,9 +211,14 @@ WARNING: ${matchedCase.warning}
 
       setMessages(prev => [...prev, aiMsg]);
 
-      const raw = aiData.suggestions && Array.isArray(aiData.suggestions) && aiData.suggestions.length > 0
-        ? aiData.suggestions
-        : (matchedCase?.fallback_suggestions?.length > 0 ? matchedCase.fallback_suggestions : []);
+      let raw = [];
+      if (aiData.suggestions && Array.isArray(aiData.suggestions) && aiData.suggestions.length > 0) {
+        raw = aiData.suggestions;
+      } else if (matchedCase?.fallback_suggestions?.length > 0) {
+        raw = matchedCase.fallback_suggestions;
+      } else if (!matchedCase) {
+        raw = GENERIC_FALLBACK_SUGGESTIONS;
+      }
       setSuggestions(raw.slice(0, 2));
 
     } catch (error) {
