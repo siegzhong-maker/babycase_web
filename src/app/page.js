@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Send, User, Bot, Sparkles, BookOpen } from 'lucide-react';
 import SopWizard from '@/components/SopWizard';
 import WorryWall from '@/components/WorryWall';
@@ -9,7 +11,22 @@ import BabyProfileModal, { loadProfile, saveProfile } from '@/components/BabyPro
 import { calculateAge } from '@/utils/age';
 import { KNOWLEDGE_BASE } from '@/data/knowledge_base';
 
-const GENERIC_FALLBACK_SUGGESTIONS = ["宝宝多大？", "有哪些症状？"];
+const GENERIC_FALLBACK_SUGGESTIONS = ["疫苗怎么打？", "什么时候需要就医？"];
+
+const AI_QUESTION_PATTERNS = ["宝宝多大", "有哪些症状", "谁感冒", "什么时候开始", "是孕妈", "还是宝宝", "月龄"];
+
+function filterSuggestions(candidates, recentUserTexts) {
+  const normalize = (s) => (s || '').replace(/[？?]\s*/g, '').trim().toLowerCase();
+  return candidates.filter((s) => {
+    const n = normalize(s);
+    if (AI_QUESTION_PATTERNS.some((p) => n.startsWith(p) || n.includes(p))) return false;
+    if (recentUserTexts.some((u) => {
+      const nu = normalize(u);
+      return nu && (n === nu || n.includes(nu) || nu.includes(n));
+    })) return false;
+    return true;
+  });
+}
 
 // Helper for JSON parsing
 function safeParseJSON(str) {
@@ -156,15 +173,14 @@ sopData 结构：
 
 ## Step 3: 预测性关怀与引导 (The Post-Ask Logic)
 - **每一轮回复都必须包含 suggestions**，至少 2 个，便于用户点选追问。
-- 在回答结尾，根据当前话题预测用户可能忽略的下一个风险点或知识点，转化为**用户视角的追问** (放入 suggestions 字段)。
-- **注意：** "suggestions" 必须是用户想问的问题，而不是你对用户的提问！
+- **suggestions 必须是用户想问的问题**，而不是你对用户的提问。suggestions 应围绕当前话题的延伸，而不是重复或追问已提供的信息。
+- **禁止**将 AI 追问用户的问题放入 suggestions，例如「宝宝多大？」「有哪些症状？」「谁感冒了？」「什么时候开始的？」等。
+- **正确**：放入用户可能接着问的问题，如「疫苗怎么打？」「什么时候需要就医？」「需要吃益生菌吗？」「怎么区分溢奶和吐奶？」。
   - ❌ 错误： "家里有体温计吗？" (这是AI问用户)
-  - ✅ 正确： "体温计怎么选？" (这是用户问AI)
-  - ✅ 正确： "发烧会烧坏脑子吗？"
-  - ✅ 正确： "什么时候要去医院？"
-  - ✅ 正确： "怎么算一次胎动？" (涉及计数时优先推荐)
-  - ✅ 正确： "疫苗怎么算一针？"
-- 追问场景示例：用户选了「1-3个月」后，suggestions 可包含「一直哭怎么办？」「发烧要不要去医院？」「肠绞痛怎么缓解？」
+  - ❌ 错误： "宝宝多大？" "有哪些症状？" (AI追问用户)
+  - ✅ 正确： "体温计怎么选？" (用户问AI)
+  - ✅ 正确： "发烧会烧坏脑子吗？" "什么时候要去医院？"
+  - ✅ 正确： "怎么算一次胎动？" "疫苗怎么算一针？"
 
 # Constraints
 - 语气：像一位值得信赖的大姐姐，温暖（使用“亲爱的”、“宝妈”、“咱们宝宝”），但不轻浮。
@@ -251,7 +267,9 @@ WARNING: ${matchedCase.warning}
       } else if (!matchedCase) {
         raw = GENERIC_FALLBACK_SUGGESTIONS;
       }
-      setSuggestions(raw.slice(0, 2));
+      const recentUserTexts = [text, ...messages.filter((m) => m.role === 'user').map((m) => m.content).slice(-3)];
+      const filtered = filterSuggestions(raw, recentUserTexts);
+      setSuggestions(filtered.slice(0, 2));
 
     } catch (error) {
       console.error(error);
@@ -332,11 +350,15 @@ WARNING: ${matchedCase.warning}
                 {msg.role === 'assistant' && <div className="text-xs text-gray-400 ml-1">兜兜 (金牌月嫂)</div>}
                 
                 {(msg.content || msg.reply) && (
-                  <div className={`p-4 rounded-2xl shadow-sm text-sm leading-relaxed whitespace-pre-wrap
+                  <div className={`p-4 rounded-2xl shadow-sm text-sm leading-relaxed
                     ${msg.role === 'user' 
-                      ? 'bg-emerald-500 text-white rounded-tr-sm' 
-                      : 'bg-white border border-gray-100 text-gray-700 rounded-tl-sm'}`}>
-                    {msg.content || msg.reply}
+                      ? 'bg-emerald-500 text-white rounded-tr-sm whitespace-pre-wrap' 
+                      : 'bg-white border border-gray-100 text-gray-700 rounded-tl-sm prose prose-sm prose-p:my-1 prose-ul:my-2 prose-li:my-0 max-w-none'}`}>
+                    {msg.role === 'assistant' ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.reply || ''}</ReactMarkdown>
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                 )}
 
