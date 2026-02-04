@@ -167,7 +167,7 @@ WARNING: ${matchedCase.warning}
         { role: 'user', content: text }
       ];
 
-      // 3. Call API with Streaming
+      // 3. Call API (Standard JSON, no streaming for stability)
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -179,41 +179,8 @@ WARNING: ${matchedCase.warning}
         throw new Error(errData.error || 'Request failed');
       }
 
-      // 4. Handle Streaming Response
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let done = false;
-      let fullContent = '';
-      
-      // Temporary AI message for streaming effect
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        reply: "正在思考...", 
-        action: 'none'
-      }]);
-
-      while (!done) {
-        const { value, done: doneReading } = await reader.read();
-        done = doneReading;
-        const chunkValue = decoder.decode(value, { stream: true });
-        
-        // Parse SSE data: lines starting with "data: "
-        const lines = chunkValue.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-            try {
-              const data = JSON.parse(line.slice(6));
-              const content = data.choices?.[0]?.delta?.content || '';
-              fullContent += content;
-              
-              // Update UI with partial content (optional, but since we expect JSON, maybe just show dots)
-              // For now, let's just wait for full content because we need to parse JSON
-            } catch (e) {
-              // ignore parse errors for partial chunks
-            }
-          }
-        }
-      }
+      const resData = await response.json();
+      const fullContent = resData.content || "";
 
       // 5. Parse Final JSON
       const aiData = safeParseJSON(fullContent);
