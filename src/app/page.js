@@ -7,8 +7,6 @@ import WorryWall from '@/components/WorryWall';
 import ClarifyCard from '@/components/ClarifyCard';
 import { KNOWLEDGE_BASE } from '@/data/knowledge_base';
 
-const DEFAULT_SUGGESTIONS = ["发烧多少度要去医院？", "可以继续喂奶吗？", "什么时候需要就医？"];
-
 // Helper for JSON parsing
 function safeParseJSON(str) {
   try { return JSON.parse(str); } catch (e) {}
@@ -50,12 +48,11 @@ export default function Home() {
   useEffect(() => {
     // 覆盖默认Tags，展示测试场景
     const testScenarios = [
-      { id: "case_vomit_ambiguous", display_tag: "🤢 吃完就吐", query: "吃完就吐" },
+      { id: "case_fetal_movement", display_tag: "👣 怎么数胎动", query: "怎么数胎动" },
+      { id: "case_cold_ambiguous", display_tag: "🤧 感冒了怎么办", query: "感冒了怎么办" },
       { id: "case_wake_ambiguous", display_tag: "😴 半夜老是醒", query: "半夜老是醒" },
-      { id: "case_fetal_movement", display_tag: "👣 感觉宝宝不动了", query: "感觉宝宝不动了" },
-      { id: "case_colic", display_tag: "😭 一直哭", query: "一直哭" },
-      { id: "case_cold_ambiguous", display_tag: "🤧 发烧了怎么办", query: "发烧了怎么办" },
-      { id: "case_chickenpox", display_tag: "💉 水痘疫苗", query: "水痘疫苗" }
+      { id: "case_vomit_ambiguous", display_tag: "🤢 吃完就吐", query: "吃完就吐" },
+      { id: "case_colic", display_tag: "😭 一直哭", query: "一直哭" }
     ];
     setWorryTags(testScenarios);
   }, []);
@@ -212,13 +209,10 @@ WARNING: ${matchedCase.warning}
 
       setMessages(prev => [...prev, aiMsg]);
 
-      if (aiData.suggestions && Array.isArray(aiData.suggestions) && aiData.suggestions.length > 0) {
-        setSuggestions(aiData.suggestions);
-      } else if (matchedCase?.fallback_suggestions?.length > 0) {
-        setSuggestions(matchedCase.fallback_suggestions);
-      } else {
-        setSuggestions(DEFAULT_SUGGESTIONS);
-      }
+      const raw = aiData.suggestions && Array.isArray(aiData.suggestions) && aiData.suggestions.length > 0
+        ? aiData.suggestions
+        : (matchedCase?.fallback_suggestions?.length > 0 ? matchedCase.fallback_suggestions : []);
+      setSuggestions(raw.slice(0, 2));
 
     } catch (error) {
       console.error(error);
@@ -351,8 +345,8 @@ WARNING: ${matchedCase.warning}
           </div>
         )}
 
-        {/* 提问前推荐：大家都在问（对话中常驻） */}
-        {messages.length > 1 && (
+        {/* 提问前推荐：月嫂阿姨常被问（与猜你想问互斥，suggestions 为空时展示） */}
+        {messages.length > 1 && suggestions.length === 0 && !isLoading && (
           <WorryWall tags={worryTags} onTagClick={handleTagClick} compact />
         )}
 
