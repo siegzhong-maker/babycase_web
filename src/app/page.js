@@ -15,6 +15,48 @@ const GENERIC_FALLBACK_SUGGESTIONS = ["疫苗怎么打？", "什么时候需要�
 
 const AI_QUESTION_PATTERNS = ["宝宝多大", "有哪些症状", "谁感冒", "什么时候开始", "是孕妈", "还是宝宝", "月龄"];
 
+const VISIT_KEY = "douzhidao_has_visited";
+function getHasVisited() {
+  if (typeof window === "undefined") return false;
+  try { return localStorage.getItem(VISIT_KEY) === "1"; } catch (e) { return false; }
+}
+function setHasVisited() {
+  try { localStorage.setItem(VISIT_KEY, "1"); } catch (e) {}
+}
+
+const WELCOME_FIRST = "宝妈你好～我是兜兜阿姨，带过好多娃，吃喝拉撒、生病护理都能问，别客气～\n\n不知道问啥？可以点下面情境试试～";
+const WELCOME_RETURN = "宝妈你好～有啥想问的尽管说，或点下面常见问题～";
+
+const GUIDED_PROMPTS = [
+  { title: "宝宝刚出生，先了解这些", query: "新生儿护理要注意什么", caseId: null },
+  { title: "最近宝宝有点闹", query: "一直哭", caseId: "case_colic" },
+  { title: "马上要打疫苗，提前做功课", query: "疫苗怎么打", caseId: "case_chickenpox" }
+];
+
+const STAGE_RANGE_PATTERNS = [
+  { pattern: /0-3月|0～3月/, value: "0-3月" },
+  { pattern: /3-6月|3～6月/, value: "3-6月" },
+  { pattern: /6-12月|6～12月/, value: "6-12月" },
+  { pattern: /1岁以上|12月以上/, value: "1岁以上" },
+];
+const OBJECT_PATTERNS = [
+  { pattern: /宝宝|👶/, value: "宝宝" },
+  { pattern: /孕妈|🤰|孕期/, value: "孕妈" },
+  { pattern: /宝妈|👩|产后|哺乳/, value: "宝妈" },
+];
+function getProfileUpdateFromClarifyText(text) {
+  if (!text || typeof text !== "string") return {};
+  const t = text.trim();
+  const next = {};
+  for (const { pattern, value } of STAGE_RANGE_PATTERNS) {
+    if (pattern.test(t)) { next.stage_range = value; break; }
+  }
+  for (const { pattern, value } of OBJECT_PATTERNS) {
+    if (pattern.test(t)) { next.object = value; break; }
+  }
+  return next;
+}
+
 function filterSuggestions(candidates, recentUserTexts) {
   const normalize = (s) => (s || '').replace(/[？?]\s*/g, '').trim().toLowerCase();
   return candidates.filter((s) => {
@@ -55,7 +97,7 @@ export default function Home() {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      reply: "宝妈你好呀！我是兜兜阿姨\n今天宝宝状态怎么样？不管是吃喝拉撒，还是生病护理，我都在哦。",
+      reply: WELCOME_FIRST,
       action: 'none'
     }
   ]);
@@ -65,11 +107,22 @@ export default function Home() {
   const [suggestions, setSuggestions] = useState([]);
   const [profile, setProfile] = useState({ name: '糯米', gender: '男孩', birth: '2024-11-20' });
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [hasVisited, setHasVisitedState] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
     setProfile(loadProfile());
+    const visited = getHasVisited();
+    setHasVisitedState(visited);
+    if (visited) {
+      setMessages(prev => prev.length === 1 && prev[0].role === 'assistant'
+        ? [{ ...prev[0], reply: WELCOME_RETURN }] : prev);
+    }
   }, []);
+
+  useEffect(() => {
+    if (messages.length > 1) setHasVisited();
+  }, [messages.length]);
 
   const handleSaveProfile = (next) => {
     setProfile(next);
@@ -121,7 +174,7 @@ export default function Home() {
 你的特点是专业、温暖、耐心且极其严谨。你不是医生，不进行医疗诊断，但在护理建议上比通用AI更细致、更具实操性。
 
 # 当前宝宝档案
-用户已录入：宝宝昵称 ${profile.name}，${profile.gender}，出生 ${profile.birth}（约${calculateAge(profile.birth)}）。回复时请聚焦该宝宝，可自然称呼其昵称，并根据月龄/年龄给出适宜建议。
+用户已录入：宝宝昵称 ${profile.name}，${profile.gender}，出生 ${profile.birth}（约${calculateAge(profile.birth)}）${profile.stage_range ? `，当前阶段：${profile.stage_range}` : ''}${profile.object ? `，对象：${profile.object}` : ''}。回复时请聚焦该宝宝，可自然称呼其昵称，并根据月龄/年龄给出适宜建议。
 
 # Goal
 你的目标是缓解用户的育儿焦虑，通过专业的询问引导出用户的真实情况，提供针对性的护理建议，并鼓励用户持续互动。
@@ -204,19 +257,21 @@ sopData 结构：
 }`;
 
       if (matchedCase) {
-        // Check for ambiguity configuration in Knowledge Base
+        const scenarioBlock = (matchedCase.core_question || matchedCase.related_scenarios || matchedCase.decision_criteria)
+          ? `\n【场景结构】核心问题：${matchedCase.core_question || '无'}；相关场景：${(matchedCase.related_scenarios || []).join('、')}；判定条件：${matchedCase.decision_criteria || '无'}`
+          : '';
         if (matchedCase.is_ambiguous && matchedCase.clarify_options) {
            systemPrompt += `\n\n【系统检测到歧义场景】
 当前匹配到：${matchedCase.display_tag}
 该场景存在歧义，请务必返回 "action": "clarify"，并使用以下选项：
 ${JSON.stringify(matchedCase.clarify_options)}
-(请礼貌询问用户具体情况)`;
+(请礼貌询问用户具体情况)${scenarioBlock}`;
         } else {
            systemPrompt += `\n\n【月嫂经验知识库 - 请参考此方案进行解答】
 CASE_TAG: ${matchedCase.tags.join(', ')}
 SOLUTION: ${matchedCase.solution}
 WARNING: ${matchedCase.warning}
-(请将此解决方案内化为你的专业建议，语气要亲切笃定)`;
+(请将此解决方案内化为你的专业建议，语气要亲切笃定)${scenarioBlock}`;
         }
       } else {
         systemPrompt += `\n\n(未匹配到特定知识库，请基于你的专业月嫂知识进行解答。如果问题模糊，必须返回 action: "clarify" 和 clarifyOptions，禁止纯文字追问)`;
@@ -303,9 +358,17 @@ WARNING: ${matchedCase.warning}
   };
 
   const handleClarifyOptionClick = (option) => {
-    // User clicked a clarify option (e.g. "宝宝感冒")
-    // Send it as user message, and optionally pass next_id if available to force context
+    const update = getProfileUpdateFromClarifyText(option.text);
+    if (Object.keys(update).length > 0) {
+      const next = { ...profile, ...update };
+      setProfile(next);
+      saveProfile(next);
+    }
     sendMessage(option.text, option.next_id);
+  };
+
+  const handleGuidedClick = (item) => {
+    sendMessage(item.query, item.caseId || null);
   };
 
   return (
@@ -332,9 +395,14 @@ WARNING: ${matchedCase.warning}
 
         {/* Chat Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
-          {/* Welcome Worry Wall (Show only when no messages or just welcome message) */}
+          {/* Welcome: 情境引导(仅首次) + 月嫂阿姨常被问 */}
           {messages.length <= 1 && (
-            <WorryWall tags={worryTags} onTagClick={handleTagClick} />
+            <WorryWall
+              tags={worryTags}
+              onTagClick={handleTagClick}
+              guidedPrompts={!hasVisited ? GUIDED_PROMPTS : null}
+              onGuidedClick={handleGuidedClick}
+            />
           )}
 
           {messages.map((msg, idx) => (

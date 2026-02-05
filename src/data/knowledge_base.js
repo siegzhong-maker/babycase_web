@@ -24,6 +24,9 @@ export const KNOWLEDGE_BASE = [
     tags: ["吐奶", "溢奶", "喷射", "吃完就吐", "呕吐"],
     display_tag: "🤢 吃完就吐",
     is_ambiguous: true,
+    core_question: "吃完就吐是宝宝吐奶还是孕妈孕吐？",
+    related_scenarios: ["溢奶", "喷射", "拍嗝", "幽门狭窄"],
+    decision_criteria: "对象=宝宝 且 喂奶后吐出 → 吐奶护理；对象=孕妈 → 孕吐缓解",
     clarify_options: [
       { text: "👶 宝宝吐奶/喷射", next_id: "case_spit_milk" },
       { text: "🤰 孕妈孕吐", next_id: "case_morning_sickness" }
@@ -45,6 +48,9 @@ export const KNOWLEDGE_BASE = [
     stage: "infant",
     tags: ["肠绞痛", "哭闹", "黄昏闹", "一直哭"],
     display_tag: "😭 傍晚一直哭",
+    core_question: "宝宝一直哭是肠绞痛还是其他急症？",
+    related_scenarios: ["黄昏闹", "飞机抱", "排气操", "肠套叠"],
+    decision_criteria: "傍晚定时哭闹、无发热呕吐 → 肠绞痛；哭声尖锐、果酱样便 → 就医排除肠套叠",
     solution: "这是典型的肠绞痛/黄昏闹：\n1. 【飞机抱】让宝宝趴在你的小臂上，压迫腹部缓解胀气。\n2. 【排气操】清醒时多顺时针揉肚子，做蹬腿动作。\n3. 【白噪音】开吹风机或者吸尘器的声音，能让他平静下来。",
     warning: "如果哭声尖锐、伴有果酱样大便，需立即就医排除肠套叠。",
     fallback_suggestions: ["肠绞痛多久能好？", "飞机抱怎么做？"]
@@ -76,7 +82,10 @@ export const KNOWLEDGE_BASE = [
     stage: "all",
     tags: ["感冒", "发烧", "流鼻涕", "咳嗽"],
     display_tag: "🤧 感冒了怎么办",
-    is_ambiguous: true, // 标记为模糊场景
+    is_ambiguous: true,
+    core_question: "感冒了是谁感冒？宝宝、孕妈还是宝妈？",
+    related_scenarios: ["发烧", "流鼻涕", "咳嗽", "用药", "就医"],
+    decision_criteria: "对象=宝宝/孕妈/宝妈 分别对应不同护理与用药建议",
     clarify_options: [
       { text: "👶 宝宝感冒", next_id: "case_cold_baby" },
       { text: "🤰 孕妈感冒（孕期）", next_id: "case_cold_pregnant" },

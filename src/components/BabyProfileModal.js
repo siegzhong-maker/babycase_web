@@ -9,6 +9,8 @@ const DEFAULT_PROFILE = {
   name: "糯米",
   gender: "男孩",
   birth: "2024-11-20",
+  stage_range: undefined,
+  object: undefined,
 };
 
 export function loadProfile() {
