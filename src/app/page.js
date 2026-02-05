@@ -425,7 +425,7 @@ WARNING: ${matchedCase.warning}
         {/* Chat Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
           {/* Welcome: 情境引导(仅首次) + 月嫂阿姨常被问 */}
-          {messages.length <= 1 && (
+          {!messages.some(m => m.role === 'user') && (
             <WorryWall
               tags={worryTags}
               onTagClick={handleTagClick}
