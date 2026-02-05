@@ -124,10 +124,8 @@ export default function Home() {
     setProfile(loadProfile());
     const visited = getHasVisited();
     setHasVisitedState(visited);
-    if (visited) {
-      setMessages(prev => prev.length === 1 && prev[0].role === 'assistant'
-        ? [{ ...prev[0], reply: WELCOME_RETURN }] : prev);
-    }
+    // 只要没有用户消息，就显示首次访问的欢迎消息和引导区域
+    // 不再根据 hasVisited 来改变欢迎消息
   }, []);
 
   useEffect(() => {
@@ -429,7 +427,7 @@ WARNING: ${matchedCase.warning}
             <WorryWall
               tags={worryTags}
               onTagClick={handleTagClick}
-              guidedPrompts={!hasVisited ? GUIDED_PROMPTS : null}
+              guidedPrompts={GUIDED_PROMPTS}
               onGuidedClick={handleGuidedClick}
             />
           )}
