@@ -20,6 +20,7 @@ async function callOpenRouter(model, messages, apiKey) {
       model: model,
       messages: messages,
       temperature: 0.7,
+      max_tokens: 4096, // Prevent truncation of long JSON responses
       stream: false // Disable streaming to ensure clean JSON parsing on server
     })
   });

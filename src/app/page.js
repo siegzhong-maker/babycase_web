@@ -86,10 +86,20 @@ function safeParseJSON(str) {
     try { return JSON.parse(sub); } catch(e){}
   }
   
-  // Regex fallback for reply
-  const replyMatch = str.match(/"reply"\s*:\s*"(.*?)(?=",|})/s);
+  // Regex fallback for reply (|$ handles truncated JSON without closing ", or })
+  const replyMatch = str.match(/"reply"\s*:\s*"(.*?)(?=",|}|$)/s);
   if (replyMatch) return { reply: replyMatch[1], action: 'none' };
-  
+
+  // Manual extraction for truncated JSON: {"reply":"xxx (no closing)
+  const replyKeyMatch = str.match(/"reply"\s*:\s*"/);
+  if (replyKeyMatch) {
+    const valueStart = replyKeyMatch.index + replyKeyMatch[0].length;
+    const extracted = str.slice(valueStart).replace(/\\"/g, '"').replace(/\\n/g, '\n');
+    if (extracted.length > 0) {
+      return { reply: extracted, action: 'none' };
+    }
+  }
+
   return { reply: str, action: 'none' }; // Treat as raw text
 }
 
@@ -195,6 +205,7 @@ export default function Home() {
 - **对象优先**：先问「是孕妈本人、宝宝还是宝妈（产后）」？clarifyOptions 使用这三个互斥选项。
 - **互斥规则**：孕妈 = 孕期，不会哺乳；只有「宝妈（产后）」才可能哺乳期。选「孕妈」时绝不出现哺乳期相关追问。
 - **阶段追问**：确定对象后再问孕周/月龄。孕周追问必须提供可点选区间（如 12周以内、12-24周、24-32周、32周以上），禁止用「孕早期/孕中期/孕晚期」三档或让用户手动输入周数。月龄追问必须返回 clarifyOptions，如 0-3月、3-6月、6-12月、1岁以上。
+- **【对象锁定 - 不可违反】**：一旦用户已通过 clarifyOptions 或消息选择了对象（宝宝/孕妈/宝妈），该对象在本次对话中不可切换。后续所有 reply、clarifyOptions、追问必须严格围绕该对象。**严禁**：用户选了「宝妈（产后）」后仍追问宝宝月龄、宝宝症状、宝宝名字等；用户选了「宝宝」后追问孕周或孕妈用药。对象=宝妈时，只可追问宝妈自身：产后多久、情绪状态、睡眠、身体不适等。
 - 如果缺失任意一项关键信息，**立刻停止给出建议**，返回 "action": "clarify" 和 clarifyOptions。
 - **追问有有限选项时**（如：一直哭 vs 突然开始哭 vs 有其他症状），必须返回 "action": "clarify" 和 clarifyOptions。示例：clarifyOptions: [{ "text": "一直哭", "next_id": null }, { "text": "突然开始哭", "next_id": null }, { "text": "有其他症状（发烧/拉肚子等）", "next_id": null }]
 - 追问要像聊天一样自然，不要像填表格。
@@ -255,6 +266,24 @@ sopData 结构：
   },
   "suggestions": ["怎么区分溢奶和吐奶？", "需要吃益生菌吗？"]
 }`;
+
+      // 3a. 注入已确认对象（用户本轮或历史中选择的 宝宝/孕妈/宝妈）
+      const objectFromText = getProfileUpdateFromClarifyText(text).object;
+      const confirmedObject = objectFromText || profile.object;
+      if (confirmedObject) {
+        const objectGuidance = confirmedObject === '宝妈'
+          ? `【已确认对象】用户已选择「宝妈（产后）」。\n- 禁止追问：宝宝月龄、宝宝症状、宝宝名字、宝宝体温等一切与宝宝相关的内容。\n- 只可追问宝妈自身：产后多久（如 月子内/1-3月/3-6月）、情绪状态（情绪低落/焦虑/易怒）、睡眠（失眠/睡不好）、身体不适（伤口/恶露/头疼等）。\n- clarifyOptions 必须全部与宝妈相关，示例：月子内 / 出月子1-3月 / 情绪有点低落 / 睡眠不好 / 其他。`
+          : confirmedObject === '孕妈'
+          ? `【已确认对象】用户已选择「孕妈（孕期）」。\n- 禁止追问：宝宝月龄、哺乳期相关。\n- 只可追问孕妈自身：孕周、症状、身体不适等。`
+          : `【已确认对象】用户已选择「宝宝」。\n- 可追问宝宝月龄、症状等。\n- 禁止追问孕周或孕妈用药。`;
+        systemPrompt += `\n\n${objectGuidance}`;
+      }
+
+      // 对象锁定：若用户已选宝妈/孕妈，不得使用宝宝专属 case 的内容
+      const BABY_ONLY_IDS = ["case_colic", "case_spit_milk", "case_cold_baby", "case_sleep_reversal"];
+      if (confirmedObject === '宝妈' || confirmedObject === '孕妈') {
+        if (matchedCase && BABY_ONLY_IDS.includes(matchedCase.id)) matchedCase = null;
+      }
 
       if (matchedCase) {
         const scenarioBlock = (matchedCase.core_question || matchedCase.related_scenarios || matchedCase.decision_criteria)
