@@ -43,6 +43,8 @@ export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
       name: form.name?.value?.trim() || profile.name,
       gender: profile.gender,
       birth: form.birth?.value || profile.birth,
+      stage_range: profile.stage_range,
+      object: profile.object,
     };
     onSave(next);
     onClose();
