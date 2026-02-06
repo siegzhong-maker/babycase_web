@@ -10,12 +10,12 @@ import ClarifyCard from '@/components/ClarifyCard';
 import BabyProfileModal, { loadProfile, saveProfile } from '@/components/BabyProfileModal';
 import { calculateAge } from '@/utils/age';
 import { KNOWLEDGE_BASE } from '@/data/knowledge_base';
+import { VISIT_KEY, GUIDED_PROMPTS } from '@/config/constants';
+import { trackEvent } from '@/utils/analytics';
 
 const GENERIC_FALLBACK_SUGGESTIONS = ["疫苗怎么打？", "什么时候需要就医？"];
 
 const AI_QUESTION_PATTERNS = ["宝宝多大", "有哪些症状", "谁感冒", "什么时候开始", "是孕妈", "还是宝宝", "月龄"];
-
-const VISIT_KEY = "douzhidao_has_visited";
 function getHasVisited() {
   if (typeof window === "undefined") return false;
   try { return localStorage.getItem(VISIT_KEY) === "1"; } catch (e) { return false; }
@@ -24,14 +24,10 @@ function setHasVisited() {
   try { localStorage.setItem(VISIT_KEY, "1"); } catch (e) {}
 }
 
-const WELCOME_FIRST = "宝妈你好～我是兜兜阿姨，带过好多娃，吃喝拉撒、生病护理都能问，别客气～\n\n不知道问啥？可以点下面情境试试～";
-const WELCOME_RETURN = "宝妈你好～有啥想问的尽管说，或点下面常见问题～";
-
-const GUIDED_PROMPTS = [
-  { title: "宝宝刚出生，先了解这些", query: "新生儿护理要注意什么", caseId: null },
-  { title: "最近宝宝有点闹", query: "一直哭", caseId: "case_colic" },
-  { title: "马上要打疫苗，提前做功课", query: "疫苗怎么打", caseId: "case_chickenpox" }
-];
+const WELCOME_FIRST =
+  "宝妈你好～我是兜兜阿姨，带过好多娃，吃喝拉撒、生病护理都能问，别客气～\n\n不知道怎么开口，可以先按上面的情境试试，或者点下面常见问题一键提问～";
+const WELCOME_RETURN =
+  "宝妈你好～有问题直接说，或者继续用上面的情境入口和常见问题一键提问～";
 
 const STAGE_RANGE_PATTERNS = [
   { pattern: /0-3月|0～3月/, value: "0-3月" },
@@ -208,15 +204,14 @@ export default function Home() {
 - **追问有有限选项时**（如：一直哭 vs 突然开始哭 vs 有其他症状），必须返回 "action": "clarify" 和 clarifyOptions。示例：clarifyOptions: [{ "text": "一直哭", "next_id": null }, { "text": "突然开始哭", "next_id": null }, { "text": "有其他症状（发烧/拉肚子等）", "next_id": null }]
 - 追问要像聊天一样自然，不要像填表格。
 
-**追问选项参考**（可直接套用）：
-| 追问类型 | clarifyOptions 示例 |
-| 对象 | 孕妈本人 / 宝宝 / 宝妈（产后） |
-| 孕周 | 12周以内 / 12-24周 / 24-32周 / 32周以上 |
-| 月龄 | 0-3月 / 3-6月 / 6-12月 / 1岁以上 |
-| 体温 | 低于38度 / 38-38.5度 / 38.5-39度 / 39度以上 |
-| 持续 | 刚发现 / 1-2天 / 3天以上 |
-| 症状 | 视场景而定（如哭闹：一直哭 / 突然开始哭 / 伴有发烧等） |
-根据当前缺失的信息（对象/月龄/症状/体温/持续等），从参考表中选择或组合生成 clarifyOptions。选项数量 3–6 个为宜，覆盖常见情况，最后可加「其他，我来补充」作为兜底。无法穷举时，用代表性区间或典型选项覆盖主要场景。
+**追问选项参考（可直接套用）**：
+- 对象：孕妈本人 / 宝宝 / 宝妈（产后）
+- 孕周：12周以内 / 12-24周 / 24-32周 / 32周以上
+- 月龄：0-3月 / 3-6月 / 6-12月 / 1岁以上
+- 体温：低于38度 / 38-38.5度 / 38.5-39度 / 39度以上
+- 持续时间：刚发现 / 1-2天 / 3天以上
+- 其他症状：视场景而定（如哭闹：一直哭 / 突然开始哭 / 伴有发烧等）
+根据当前缺失的信息（对象/月龄/症状/体温/持续等），从以上参考中选择或组合生成 clarifyOptions。选项数量 3–6 个为宜，覆盖常见情况，最后可加「其他，我来补充」作为兜底。无法穷举时，用代表性区间或典型选项覆盖主要场景。
 
 ## Step 2: 专业护理建议 (仅在信息完整时进行)
 - **区分医疗与护理：** 明确告知哪些情况需要立刻去医院，哪些可以在家观察。
@@ -282,7 +277,7 @@ sopData 结构：
       if (confirmedObject === '宝妈' || confirmedObject === '孕妈') {
         if (matchedCase && BABY_ONLY_IDS.includes(matchedCase.id)) matchedCase = null;
       }
-
+      
       if (matchedCase) {
         const scenarioBlock = (matchedCase.core_question || matchedCase.related_scenarios || matchedCase.decision_criteria)
           ? `\n【场景结构】核心问题：${matchedCase.core_question || '无'}；相关场景：${(matchedCase.related_scenarios || []).join('、')}；判定条件：${matchedCase.decision_criteria || '无'}`
@@ -376,6 +371,10 @@ WARNING: ${matchedCase.warning}
   };
 
   const handleTagClick = (tag) => {
+    trackEvent("entry_click_worry_tag", {
+      id: tag.id,
+      label: tag.display_tag,
+    });
     // Send the display text as the message, but use the ID for context retrieval
     sendMessage(tag.display_tag, tag.id);
   };
@@ -395,6 +394,10 @@ WARNING: ${matchedCase.warning}
   };
 
   const handleGuidedClick = (item) => {
+    trackEvent("entry_click_guided_prompt", {
+      title: item.title,
+      caseId: item.caseId || null,
+    });
     sendMessage(item.query, item.caseId || null);
   };
 
