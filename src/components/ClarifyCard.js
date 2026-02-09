@@ -9,7 +9,7 @@ export default function ClarifyCard({ options, onOptionClick }) {
     <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 my-3 animate-fade-in">
       <div className="flex items-center gap-2 mb-3">
         <HelpCircle size={16} className="text-orange-500" />
-        <span className="text-sm font-medium text-gray-800">请选择具体情况，以便我准确回答：</span>
+        <span className="text-sm font-medium text-gray-800">选一下情况，我可以给你更针对的建议：</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {options.map((opt, idx) => (

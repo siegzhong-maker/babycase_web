@@ -3,6 +3,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_fetal_movement",
     stage: "pregnancy", // 适用阶段
+    default_object: "孕妈", // 语义仅对应孕妈，无需追问对象
     tags: ["胎动", "数胎动", "不动了", "踢我"],
     display_tag: "👣 怎么数胎动",
     core_question: "怎么正确数胎动，及早发现宝宝异常？",
@@ -14,6 +15,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_morning_sickness",
     stage: "pregnancy",
+    default_object: "孕妈",
     tags: ["孕吐", "恶心", "吐得厉害", "吃不下"],
     display_tag: "🤢 孕吐太难受",
     core_question: "孕妈孕吐怎么缓解，哪些情况需要高度警惕？",
@@ -43,6 +45,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_spit_milk",
     stage: "infant",
+    default_object: "宝宝",
     tags: [], // Tags moved to ambiguous case to force clarification
     display_tag: "",
     core_question: "宝宝吐奶怎么护理，哪些情况需要立刻就医？",
@@ -55,6 +58,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_colic",
     stage: "infant",
+    default_object: "宝宝",
     tags: ["肠绞痛", "哭闹", "黄昏闹", "一直哭"],
     display_tag: "😭 傍晚一直哭",
     core_question: "宝宝傍晚一直哭，是肠绞痛还是更严重的问题？",
@@ -69,6 +73,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_chickenpox",
     stage: "all",
+    default_object: "宝宝",
     tags: ["水痘", "水痘疫苗", "水痘接种"],
     display_tag: "💉 水痘疫苗/护理",
     core_question: "水痘疫苗怎么打，万一得了水痘在家怎么护理？",
@@ -82,6 +87,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_tantrum",
     stage: "toddler",
+    default_object: "宝宝",
     tags: ["发脾气", "打滚", "不听话", "打人", "扔东西"],
     display_tag: "😡 动不动发脾气",
     solution: "这是‘可怕的两岁’(Terrible Two)的正常表现，宝宝自我意识萌发但表达能力跟不上。\n1. 【冷处理】确保安全的前提下，让他哭一会儿，不要马上满足。\n2. 【共情】等平静下来，抱抱他：‘宝宝刚才很生气是不是？’\n3. 【转移注意力】用玩具或游戏转移他的执念。",
@@ -111,6 +117,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_cold_pregnant",
     stage: "pregnancy",
+    default_object: "孕妈",
     tags: [],
     display_tag: "",
     core_question: "孕妈感冒怎么护理？",
@@ -123,6 +130,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_cold_baby",
     stage: "all",
+    default_object: "宝宝",
     tags: [], // 仅通过追问触发
     display_tag: "",
     core_question: "宝宝感冒/流鼻涕怎么护理，什么时候必须去医院？",
@@ -135,6 +143,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_cold_mom",
     stage: "all",
+    default_object: "宝妈",
     tags: [],
     display_tag: "",
     core_question: "宝妈感冒（哺乳期）怎么护理？",
@@ -166,6 +175,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_sleep_reversal",
     stage: "infant",
+    default_object: "宝宝",
     tags: [], // Tags moved to ambiguous case
     display_tag: "",
     core_question: "宝宝频繁夜醒/睡眠倒置怎么调整？",
@@ -178,6 +188,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_pregnancy_insomnia",
     stage: "pregnancy",
+    default_object: "孕妈",
     tags: [],
     display_tag: "",
     core_question: "孕妈失眠怎么缓解？",
@@ -189,6 +200,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_mom_insomnia",
     stage: "all",
+    default_object: "宝妈",
     tags: [],
     display_tag: "",
     core_question: "宝妈产后失眠怎么缓解，和产后抑郁有什么关系？",
@@ -203,6 +215,7 @@ export const KNOWLEDGE_BASE = [
   {
     id: "case_mom_postpartum_mood",
     stage: "all",
+    default_object: "宝妈",
     tags: ["产后", "情绪", "哭", "低落", "焦虑", "抑郁"],
     display_tag: "😢 宝妈产后情绪",
     core_question: "宝妈产后情绪低落/焦虑怎么处理，何时需要怀疑产后抑郁？",
