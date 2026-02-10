@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, User, Bot, Sparkles, BookOpen } from 'lucide-react';
+import { Send, User, Bot, Sparkles } from 'lucide-react';
 import WorryWall from '@/components/WorryWall';
 import ClarifyCard from '@/components/ClarifyCard';
 import ContextCard from '@/components/ContextCard';
@@ -112,13 +112,6 @@ export default function Home() {
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 px-4 py-3 flex items-center justify-between">
           <h1 className="font-bold text-lg text-gray-800">兜知道</h1>
-          <button
-            onClick={() => setShowProfileModal(true)}
-            className="p-2 -m-2 text-gray-500 hover:text-emerald-600 rounded-full transition-colors"
-            title="兜兜小本"
-          >
-            <BookOpen size={22} />
-          </button>
         </header>
 
         {/* Context Card */}
