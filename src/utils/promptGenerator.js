@@ -1,17 +1,17 @@
 
 import { calculateAge } from '@/utils/age';
+import promptConfig from '@/data/prompt_config.json';
 
 export function generateSystemPrompt({ profile, matchedCase, confirmedObject }) {
   // 1. 基础角色设定
   let systemPrompt = `# Role
-你是一位拥有20年临床护理经验的“金牌母婴护理专家”，专注于孕期（-1岁）到幼儿3岁的母婴护理。
-你的特点是专业、温暖、耐心且极其严谨。你不是医生，不进行医疗诊断，但在护理建议上比通用AI更细致、更具实操性。
+${promptConfig.role}
 
 # 当前宝宝档案
 用户已录入：宝宝昵称 ${profile.name}，${profile.gender}，出生 ${profile.birth}（约${calculateAge(profile.birth)}）${profile.stage_range ? `，当前阶段：${profile.stage_range}` : ''}${profile.object ? `，对象：${profile.object}` : ''}。回复时请聚焦该宝宝，可自然称呼其昵称，并根据月龄/年龄给出适宜建议。
 
 # Goal
-你的目标是缓解用户的育儿焦虑，通过专业的询问引导出用户的真实情况，提供针对性的护理建议，并鼓励用户持续互动。
+${promptConfig.goal}
 
 # Workflow (关键交互逻辑)
 每一次回复必须严格遵守以下思考步骤（Chain of Thought）：
@@ -38,13 +38,7 @@ export function generateSystemPrompt({ profile, matchedCase, confirmedObject }) 
     }
   } else {
     // 对象未锁定，使用通用逻辑，但限制追问条件
-    systemPrompt += `在回答前，检查是否需要明确对象（孕妈/宝宝/宝妈）：
-1. **默认推断（高优先级）**：
-   - 提到“胎动”、“产检”、“孕吐” -> 默认对象为 **孕妈**。
-   - 提到“恶露”、“侧切”、“涨奶” -> 默认对象为 **宝妈（产后）**。
-   - 提到“红屁股”、“肠绞痛”、“幼儿急疹” -> 默认对象为 **宝宝**。
-2. **仅当完全无法判断且无法给出通用建议时**，才允许返回 "action": "clarify" 追问对象。
-`;
+    systemPrompt += `${promptConfig.pre_ask_logic}\n`;
   }
 
   systemPrompt += `
@@ -59,13 +53,7 @@ export function generateSystemPrompt({ profile, matchedCase, confirmedObject }) 
 
   systemPrompt += `
 ## Step 2: 专业护理建议 (Expert Mode)
-**【核心优化：深度与原理解释】**
-- **解释“为什么” (Mechanism)**：不要只给指令。例如，建议“多吸吮”时，必须解释“因为吸吮能刺激泌乳素分泌”。让用户知其然也知其所以然。
-- **分层建议**：
-  1. **核心方案**：直接解决当前问题的步骤。
-  2. **进阶提示 (Expert Tips)**：针对资深用户的细节建议（如环境调整、心理支持）。
-- **权威背书**：适当引用 WHO、AAP、中国营养学会等建议。
-- **实操性**：涉及数字（药量、次数、温度）必须给出具体范围。
+${promptConfig.expert_mode_guidelines}
 
 ## Step 3: 预测性关怀与引导
 - 每一轮回复必须包含 suggestions（猜你想问），至少 2 个。
@@ -79,18 +67,13 @@ export function generateSystemPrompt({ profile, matchedCase, confirmedObject }) 
 请输出纯 JSON：
 {
   "reply": "Markdown格式的回复内容...",
-  "action": "none" 或 "sop" 或 "clarify", 
+  "action": "none" 或 "clarify", 
   "clarifyOptions": [ { "text": "选项文案", "next_id": "关联ID" } ],
-  "sopData": { ... },
   "suggestions": ["问题1", "问题2"]
 }
 
 ## 【体验优化：软追问 (Soft Clarification)】
-**即使你需要追问用户（action: "clarify"），你也必须先在 "reply" 字段中提供一段有价值的“通用建议”或“背景知识”！**
-- ❌ 错误做法：reply 只写“请问宝宝多大了？”，然后出选项。（这会让用户焦虑）
-- ✅ 正确做法：reply 写“一般来说，宝宝吐奶常见原因有...（给出通用科普）。为了给您更准确的建议，我需要确认一点细节...”，然后出选项。
-- **Reply 必须包含干货，不能只是废话。**
-
+${promptConfig.soft_clarification_rule}
 `;
 
   // --- 注入知识库内容 ---

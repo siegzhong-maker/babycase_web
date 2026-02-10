@@ -2,13 +2,22 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'edge';
 
-const API_KEY = process.env.OPENROUTER_API_KEY || "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";
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const PRIMARY_MODEL = "google/gemini-2.0-flash-001"; // Update to latest stable
-const FALLBACK_MODEL = "google/gemini-2.0-flash-lite-preview-02-05:free"; // Correct OpenRouter Model ID
+const PRIMARY_MODEL = "google/gemini-3-flash-preview"; 
+const FALLBACK_MODEL = "google/gemini-2.0-flash-001";
+
+// Get keys from env and split by comma, filter empty
+function getApiKeys() {
+  const envKeys = (process.env.OPENROUTER_API_KEY || "").split(',').map(k => k.trim()).filter(k => k);
+  if (envKeys.length === 0) {
+    // Fallback only if absolutely no keys found in env
+    return [];
+  }
+  return envKeys;
+}
 
 async function callOpenRouter(model, messages, apiKey) {
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const response = await fetch(API_URL, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -20,8 +29,8 @@ async function callOpenRouter(model, messages, apiKey) {
       model: model,
       messages: messages,
       temperature: 0.7,
-      max_tokens: 4096, // Prevent truncation of long JSON responses
-      stream: false // Disable streaming to ensure clean JSON parsing on server
+      max_tokens: 4096,
+      stream: false
     })
   });
 
@@ -29,9 +38,10 @@ async function callOpenRouter(model, messages, apiKey) {
     const errorData = await response.json().catch(() => ({}));
     const errorMessage = errorData.error?.message || `API Error: ${response.status}`;
     
-    // Check for specific auth errors
-    if (response.status === 401 || errorMessage.includes('User not found') || errorMessage.includes('Key not found')) {
-       throw new Error(`Invalid API Key: ${errorMessage}`);
+    // 401: Invalid Key, 402: Insufficient Credits, 429: Rate Limit
+    if (response.status === 401 || response.status === 402 || response.status === 429 || 
+        errorMessage.includes('User not found') || errorMessage.includes('Key not found')) {
+       throw new Error(`Auth/RateLimit Error: ${errorMessage}`);
     }
     
     throw new Error(errorMessage);
@@ -44,45 +54,57 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { messages } = body;
+    const apiKeys = getApiKeys();
 
-    let response;
-    try {
-      // Attempt 1: Primary Model
-      console.log(`Trying Primary Model: ${PRIMARY_MODEL}`);
-      response = await callOpenRouter(PRIMARY_MODEL, messages, API_KEY);
-    } catch (primaryError) {
-      // CRITICAL: If it's an Auth error (Invalid Key), fail immediately. Do NOT retry.
-      if (primaryError.message.includes("Invalid API Key")) {
-         console.error("Auth Error (Primary):", primaryError.message);
-         return NextResponse.json({ error: primaryError.message }, { status: 401 });
-      }
+    if (apiKeys.length === 0) {
+      return NextResponse.json({ error: "No API Keys configured" }, { status: 500 });
+    }
 
-      console.warn(`Primary Model failed: ${primaryError.message}. Switching to Fallback...`);
-      // Attempt 2: Fallback Model
+    let lastError = null;
+
+    // --- Key Rotation Logic ---
+    // Iterate through all available keys
+    for (const apiKey of apiKeys) {
       try {
-        console.log(`Trying Fallback Model: ${FALLBACK_MODEL}`);
-        response = await callOpenRouter(FALLBACK_MODEL, messages, API_KEY);
-      } catch (fallbackError) {
-        console.error("Fallback Model also failed:", fallbackError);
+        let response;
         
-        // Check for Auth error again just in case
-        if (fallbackError.message.includes("Invalid API Key")) {
-             return NextResponse.json({ error: fallbackError.message }, { status: 401 });
+        // Try Primary Model
+        try {
+          console.log(`[Key: ...${apiKey.slice(-4)}] Trying Primary Model: ${PRIMARY_MODEL}`);
+          response = await callOpenRouter(PRIMARY_MODEL, messages, apiKey);
+        } catch (primaryError) {
+          console.warn(`[Key: ...${apiKey.slice(-4)}] Primary failed: ${primaryError.message}`);
+          
+          // If it's NOT an auth/rate-limit error, it might be a model issue, try fallback model with SAME key
+          if (!primaryError.message.includes("Auth/RateLimit")) {
+             console.log(`[Key: ...${apiKey.slice(-4)}] Trying Fallback Model: ${FALLBACK_MODEL}`);
+             response = await callOpenRouter(FALLBACK_MODEL, messages, apiKey);
+          } else {
+             // If it IS an auth error, re-throw to trigger key rotation
+             throw primaryError; 
+          }
         }
 
-        // Return the actual error reason instead of generic message
-        return NextResponse.json({ error: `AI Service Unavailable: ${fallbackError.message}` }, { status: 500 });
+        // If successful, process and return immediately
+        const data = await response.json();
+        const aiContent = data.choices?.[0]?.message?.content || "";
+        return NextResponse.json({ content: aiContent });
+
+      } catch (keyError) {
+        console.error(`[Key: ...${apiKey.slice(-4)}] Failed: ${keyError.message}`);
+        lastError = keyError;
+        
+        // If it's an Auth/RateLimit error, continue to next key (Loop continues)
+        // If it's a server error (500), we also try next key just in case, or we could stop.
+        // For robustness, we try all keys.
+        continue;
       }
     }
 
-    // Parse the response from AI
-    const data = await response.json();
-    const aiContent = data.choices?.[0]?.message?.content || "";
-    
-    // Return the content directly as JSON
-    // The frontend expects { reply: "...", action: "..." } or raw string
-    // We return it as a JSON response so frontend doesn't need to parse stream
-    return NextResponse.json({ content: aiContent });
+    // If all keys failed
+    return NextResponse.json({ 
+      error: `All API keys failed. Last error: ${lastError?.message || 'Unknown'}` 
+    }, { status: 500 });
 
   } catch (error) {
     console.error("Final API Error:", error);

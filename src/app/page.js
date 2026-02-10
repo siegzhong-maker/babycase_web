@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Send, User, Bot, Sparkles, BookOpen } from 'lucide-react';
-import SopWizard from '@/components/SopWizard';
 import WorryWall from '@/components/WorryWall';
 import ClarifyCard from '@/components/ClarifyCard';
 import BabyProfileModal, { loadProfile, saveProfile } from '@/components/BabyProfileModal';
@@ -161,11 +160,6 @@ export default function Home() {
                       msg.content
                     )}
                   </div>
-                )}
-
-                {/* SOP Wizard Component */}
-                {msg.role === 'assistant' && msg.action === 'sop' && msg.sopData && (
-                  <SopWizard data={msg.sopData} />
                 )}
 
                 {/* Clarification Card Component */}
