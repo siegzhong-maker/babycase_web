@@ -6,6 +6,7 @@ import { generateSystemPrompt } from '@/utils/promptGenerator';
 import { safeParseJSON } from '@/utils/jsonUtils';
 import { getProfileUpdateFromClarifyText, filterSuggestions } from '@/utils/chatUtils';
 import { GENERIC_FALLBACK_SUGGESTIONS } from '@/config/constants';
+import { saveProfile } from '@/components/BabyProfileModal';
 
 const WELCOME_FIRST =
   "宝妈你好～我是兜兜阿姨，带过好多娃，吃喝拉撒、生病护理都能问，别客气～\n\n不知道怎么开口，可以先按上面的情境试试，或者点下面常见问题一键提问～";
@@ -40,13 +41,30 @@ export function useChat(profile, onUpdateProfile) {
         );
       }
 
-      // 2. Determine Object (Check if user input implies object update)
-      const objectFromText = getProfileUpdateFromClarifyText(text).object;
+      // 2. Determine Object & Stage (Auto-update profile)
+      const updates = getProfileUpdateFromClarifyText(text);
+      const objectFromText = updates.object;
+      const stageFromText = updates.stage_range;
+      
+      let nextProfile = { ...profile };
+      let hasUpdate = false;
+      
+      if (objectFromText && objectFromText !== profile.object) {
+        nextProfile.object = objectFromText;
+        hasUpdate = true;
+      }
+      if (stageFromText && stageFromText !== profile.stage_range) {
+        nextProfile.stage_range = stageFromText;
+        hasUpdate = true;
+      }
+      
+      if (hasUpdate && onUpdateProfile) {
+        onUpdateProfile(nextProfile);
+        saveProfile(nextProfile); // Ensure persistence
+      }
+
       const confirmedObject = objectFromText || profile.object;
       
-      // Update profile if implied object found and not set (Optional, matches page.js logic of using it for prompt)
-      // Note: page.js didn't auto-save profile on text match, only on option click. We keep that behavior.
-
       // Object Locking for Baby Only cases
       const BABY_ONLY_IDS = ["case_colic", "case_spit_milk", "case_cold_baby", "case_sleep_reversal"];
       if (confirmedObject === '宝妈' || confirmedObject === '孕妈') {
@@ -55,7 +73,7 @@ export function useChat(profile, onUpdateProfile) {
 
       // 3. Build Prompt
       const systemPrompt = generateSystemPrompt({
-        profile,
+        profile: nextProfile,
         matchedCase,
         confirmedObject
       });

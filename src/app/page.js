@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { Send, User, Bot, Sparkles, BookOpen } from 'lucide-react';
 import WorryWall from '@/components/WorryWall';
 import ClarifyCard from '@/components/ClarifyCard';
+import ContextCard from '@/components/ContextCard';
 import BabyProfileModal, { loadProfile, saveProfile } from '@/components/BabyProfileModal';
 import { VISIT_KEY, GUIDED_PROMPTS } from '@/config/constants';
 import { trackEvent } from '@/utils/analytics';
@@ -119,6 +120,12 @@ export default function Home() {
             <BookOpen size={22} />
           </button>
         </header>
+
+        {/* Context Card */}
+        <ContextCard 
+          profile={profile} 
+          onClick={() => setShowProfileModal(true)} 
+        />
 
         {/* Disclaimer */}
         <div className="bg-orange-100 text-orange-700 text-xs px-4 py-2 text-center font-medium">

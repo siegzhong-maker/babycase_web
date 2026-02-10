@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X, Check } from "lucide-react";
 import { calculateAge } from "@/utils/age";
 
 const STORAGE_KEY = "douzhidao_baby_profile";
@@ -11,7 +11,13 @@ const DEFAULT_PROFILE = {
   birth: "2024-11-20",
   stage_range: undefined,
   object: undefined,
+  tags: [], // New: Special concerns tags
 };
+
+const TAG_OPTIONS = [
+  "过敏体质", "早产宝宝", "混合喂养", 
+  "纯母乳", "高需求宝宝", "二胎家庭", "新手爸妈"
+];
 
 export function loadProfile() {
   if (typeof window === "undefined") return DEFAULT_PROFILE;
@@ -19,7 +25,8 @@ export function loadProfile() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return { ...DEFAULT_PROFILE, ...parsed };
+      // Ensure tags array exists for legacy data
+      return { ...DEFAULT_PROFILE, ...parsed, tags: parsed.tags || [] };
     }
   } catch (e) {}
   return DEFAULT_PROFILE;
@@ -36,15 +43,24 @@ export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
   if (!isOpen) return null;
   const ageStr = calculateAge(profile.birth);
 
+  // Local state for tags editing before save
+  const currentTags = profile.tags || [];
+
+  const toggleTag = (tag) => {
+    const newTags = currentTags.includes(tag)
+      ? currentTags.filter(t => t !== tag)
+      : [...currentTags, tag];
+    onSave({ ...profile, tags: newTags });
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const form = e.target;
     const next = {
+      ...profile,
       name: form.name?.value?.trim() || profile.name,
-      gender: profile.gender,
       birth: form.birth?.value || profile.birth,
-      stage_range: profile.stage_range,
-      object: profile.object,
+      // tags are already updated in profile via toggleTag calling onSave
     };
     onSave(next);
     onClose();
@@ -57,8 +73,8 @@ export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white z-10">
           <h2 className="font-semibold text-gray-800">宝宝档案</h2>
           <button
             onClick={onClose}
@@ -67,7 +83,8 @@ export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
             <X size={20} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 space-y-5">
+          {/* Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">宝宝昵称</label>
             <input
@@ -78,6 +95,8 @@ export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
               className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
             />
           </div>
+
+          {/* Gender */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">性别</label>
             <div className="flex gap-2">
@@ -105,6 +124,8 @@ export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
               </button>
             </div>
           </div>
+
+          {/* Birth */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">出生日期</label>
             <input
@@ -115,9 +136,37 @@ export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
             />
             <p className="mt-1.5 text-sm text-emerald-600 font-medium">{ageStr}</p>
           </div>
+
+          {/* Special Tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              特别关注 <span className="text-xs text-gray-400 font-normal">(帮助兜兜更懂宝宝)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {TAG_OPTIONS.map((tag) => {
+                const isSelected = (profile.tags || []).includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+                      isSelected
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                        : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {isSelected && <Check size={12} />}
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <button
             type="submit"
-            className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-xl transition-colors active:scale-[0.98]"
+            className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-medium rounded-xl transition-colors active:scale-[0.98] shadow-sm shadow-emerald-200"
           >
             保存档案
           </button>

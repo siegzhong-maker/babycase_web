@@ -8,7 +8,8 @@ export function generateSystemPrompt({ profile, matchedCase, confirmedObject }) 
 ${promptConfig.role}
 
 # 当前宝宝档案
-用户已录入：宝宝昵称 ${profile.name}，${profile.gender}，出生 ${profile.birth}（约${calculateAge(profile.birth)}）${profile.stage_range ? `，当前阶段：${profile.stage_range}` : ''}${profile.object ? `，对象：${profile.object}` : ''}。回复时请聚焦该宝宝，可自然称呼其昵称，并根据月龄/年龄给出适宜建议。
+用户已录入：宝宝昵称 ${profile.name}，${profile.gender}，出生 ${profile.birth}（约${calculateAge(profile.birth)}）${profile.stage_range ? `，当前阶段：${profile.stage_range}` : ''}${profile.object ? `，对象：${profile.object}` : ''}。
+${profile.tags && profile.tags.length > 0 ? `【特别关注】：用户强调了以下情况：${profile.tags.join('、')}。请在回复中予以特别考虑（例如：如果是过敏体质，需避开致敏源；如果是早产，需关注矫正胎龄）。\n` : ''}回复时请聚焦该宝宝，可自然称呼其昵称，并根据月龄/年龄给出适宜建议。
 
 # Goal
 ${promptConfig.goal}
