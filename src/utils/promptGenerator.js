@@ -1,15 +1,29 @@
 
-import { calculateAge } from '@/utils/age';
+import { calculateAge, calculatePregnancyWeeks } from '@/utils/age';
 import promptConfig from '@/data/prompt_config.json';
 
 export function generateSystemPrompt({ profile, matchedCase, confirmedObject }) {
+  // 0. 解析档案状态
+  const isPregnancy = profile.status === 'pregnancy';
+  let profileInfo = "";
+  
+  if (isPregnancy) {
+    const weeks = calculatePregnancyWeeks(profile.dueDate);
+    profileInfo = `用户状态：怀孕中，预产期 ${profile.dueDate || '未知'}，当前处于【${weeks}】。
+【重要】：用户是孕妈，请重点关注孕期护理、胎儿发育和孕妈身体状况。`;
+  } else {
+    const age = calculateAge(profile.birth);
+    profileInfo = `用户状态：宝宝已出生。宝宝昵称 ${profile.name}，${profile.gender}，出生 ${profile.birth}（${age}）。
+【重要】：用户是宝妈/家长，请重点关注宝宝的生长发育、喂养和日常护理。`;
+  }
+
   // 1. 基础角色设定
   let systemPrompt = `# Role
 ${promptConfig.role}
 
-# 当前宝宝档案
-用户已录入：宝宝昵称 ${profile.name}，${profile.gender}，出生 ${profile.birth}（约${calculateAge(profile.birth)}）${profile.stage_range ? `，当前阶段：${profile.stage_range}` : ''}${profile.object ? `，对象：${profile.object}` : ''}。
-${profile.tags && profile.tags.length > 0 ? `【特别关注】：用户强调了以下情况：${profile.tags.join('、')}。请在回复中予以特别考虑（例如：如果是过敏体质，需避开致敏源；如果是早产，需关注矫正胎龄）。\n` : ''}回复时请聚焦该宝宝，可自然称呼其昵称，并根据月龄/年龄给出适宜建议。
+# 当前档案信息
+${profileInfo}
+${profile.tags && profile.tags.length > 0 ? `【特别关注】：用户强调了以下情况：${profile.tags.join('、')}。请在回复中予以特别考虑。\n` : ''}
 
 # Goal
 ${promptConfig.goal}
@@ -21,8 +35,13 @@ ${promptConfig.goal}
 `;
 
   // --- 动态判定逻辑 (Judgment Logic Fix) ---
-  // 如果当前 Case 有默认对象，或者已经确认了对象，则跳过“询问对象”的步骤
-  const targetObject = matchedCase?.default_object || confirmedObject;
+  // 优先级：匹配到的Case默认对象 > 已确认对象 > 档案隐含身份(仅当是孕期且无冲突时)
+  let targetObject = matchedCase?.default_object || confirmedObject;
+  
+  // 如果是孕期，且没有明确指向“宝宝”或“宝妈”，默认倾向于“孕妈”
+  if (!targetObject && isPregnancy) {
+     targetObject = '孕妈';
+  }
 
   if (targetObject) {
     // 【优化点1】对象已锁定，禁止追问对象

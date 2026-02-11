@@ -12,6 +12,8 @@ import { VISIT_KEY, GUIDED_PROMPTS } from '@/config/constants';
 import { trackEvent } from '@/utils/analytics';
 import { useChat } from '@/hooks/useChat';
 import { getProfileUpdateFromClarifyText } from '@/utils/chatUtils';
+import { KNOWLEDGE_BASE } from '@/data/knowledge_base';
+import { getStage } from '@/utils/age';
 
 function getHasVisited() {
   if (typeof window === "undefined") return false;
@@ -22,7 +24,7 @@ function setHasVisited() {
 }
 
 export default function Home() {
-  const [profile, setProfile] = useState({ name: '糯米', gender: '男孩', birth: '2024-11-20' });
+  const [profile, setProfile] = useState({ name: '糯米', gender: '男孩', birth: '2024-11-20', status: 'born' });
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [hasVisited, setHasVisitedState] = useState(false);
   const [worryTags, setWorryTags] = useState([]);
@@ -48,17 +50,31 @@ export default function Home() {
     saveProfile(next);
   };
 
-  // Load Tags
+  // Load Tags based on Profile Stage
   useEffect(() => {
-    const testScenarios = [
-      { id: "case_fetal_movement", display_tag: "👣 怎么数胎动", query: "怎么数胎动" },
-      { id: "case_cold_ambiguous", display_tag: "🤧 感冒了怎么办", query: "感冒了怎么办" },
-      { id: "case_wake_ambiguous", display_tag: "😴 半夜老是醒", query: "半夜老是醒" },
-      { id: "case_vomit_ambiguous", display_tag: "🤢 吃完就吐", query: "吃完就吐" },
-      { id: "case_colic", display_tag: "😭 一直哭", query: "一直哭" }
-    ];
-    setWorryTags(testScenarios);
-  }, []);
+    const stage = getStage(profile);
+    
+    const filtered = KNOWLEDGE_BASE.filter(item => {
+      // Must have a display tag to be shown on wall
+      if (!item.display_tag) return false;
+      
+      // 'all' applies to everyone
+      if (item.stage === 'all') return true;
+      
+      // Exact match
+      if (item.stage === stage) return true;
+      
+      return false;
+    });
+
+    const tags = filtered.map(item => ({
+      id: item.id,
+      display_tag: item.display_tag,
+      query: item.display_tag // When clicked, send the tag text
+    }));
+
+    setWorryTags(tags);
+  }, [profile]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -105,9 +121,9 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col items-center">
+    <div className="h-[100dvh] w-full bg-gray-50 font-sans text-gray-900 flex justify-center overflow-hidden">
       {/* Mobile Frame */}
-      <div className="w-full max-w-md bg-white min-h-screen shadow-2xl flex flex-col relative">
+      <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col relative overflow-hidden">
         
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 px-4 py-3 flex items-center justify-between">

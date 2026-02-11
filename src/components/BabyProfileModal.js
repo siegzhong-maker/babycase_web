@@ -1,17 +1,18 @@
 "use client";
 
-import { X, Check } from "lucide-react";
-import { calculateAge } from "@/utils/age";
+import { useState, useEffect } from "react";
+import { X, Check, Baby, Calendar } from "lucide-react";
+import { calculateAge, calculatePregnancyWeeks } from "@/utils/age";
 
 const STORAGE_KEY = "douzhidao_baby_profile";
 
 const DEFAULT_PROFILE = {
   name: "糯米",
   gender: "男孩",
+  status: "born", // 'born' | 'pregnancy'
   birth: "2024-11-20",
-  stage_range: undefined,
-  object: undefined,
-  tags: [], // New: Special concerns tags
+  dueDate: "", 
+  tags: [],
 };
 
 const TAG_OPTIONS = [
@@ -25,8 +26,14 @@ export function loadProfile() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Ensure tags array exists for legacy data
-      return { ...DEFAULT_PROFILE, ...parsed, tags: parsed.tags || [] };
+      return { 
+        ...DEFAULT_PROFILE, 
+        ...parsed, 
+        tags: parsed.tags || [],
+        // Migration: if status missing but birth is future, set to pregnancy? 
+        // For now just default to stored status or 'born'
+        status: parsed.status || 'born' 
+      };
     }
   } catch (e) {}
   return DEFAULT_PROFILE;
@@ -40,33 +47,39 @@ export function saveProfile(profile) {
 }
 
 export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
-  if (!isOpen) return null;
-  const ageStr = calculateAge(profile.birth);
+  // Sync internal state with props when modal opens
+  const [localProfile, setLocalProfile] = useState(profile);
 
-  // Local state for tags editing before save
-  const currentTags = profile.tags || [];
+  useEffect(() => {
+    if (isOpen) {
+      setLocalProfile({
+        ...DEFAULT_PROFILE,
+        ...profile
+      });
+    }
+  }, [isOpen, profile]);
+
+  if (!isOpen) return null;
+
+  const isPregnancy = localProfile.status === 'pregnancy';
+  
+  const ageDisplay = isPregnancy 
+    ? calculatePregnancyWeeks(localProfile.dueDate) 
+    : calculateAge(localProfile.birth);
 
   const toggleTag = (tag) => {
+    const currentTags = localProfile.tags || [];
     const newTags = currentTags.includes(tag)
       ? currentTags.filter(t => t !== tag)
       : [...currentTags, tag];
-    onSave({ ...profile, tags: newTags });
+    setLocalProfile({ ...localProfile, tags: newTags });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const form = e.target;
-    const next = {
-      ...profile,
-      name: form.name?.value?.trim() || profile.name,
-      birth: form.birth?.value || profile.birth,
-      // tags are already updated in profile via toggleTag calling onSave
-    };
-    onSave(next);
+    onSave(localProfile);
     onClose();
   };
-
-  const setGender = (g) => onSave({ ...profile, gender: g });
 
   return (
     <div
@@ -75,7 +88,7 @@ export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
     >
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white z-10">
-          <h2 className="font-semibold text-gray-800">宝宝档案</h2>
+          <h2 className="font-semibold text-gray-800">家庭档案</h2>
           <button
             onClick={onClose}
             className="p-2 -m-2 text-gray-400 hover:text-gray-600 rounded-full transition-colors"
@@ -83,28 +96,53 @@ export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
             <X size={20} />
           </button>
         </div>
+        
         <form onSubmit={handleSubmit} className="p-4 space-y-5">
+          {/* Status Switch */}
+          <div className="flex p-1 bg-gray-100 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setLocalProfile({ ...localProfile, status: 'born' })}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                !isPregnancy ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              宝宝已出生
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocalProfile({ ...localProfile, status: 'pregnancy' })}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                isPregnancy ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              怀孕中
+            </button>
+          </div>
+
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">宝宝昵称</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {isPregnancy ? "给宝宝起的乳名 (可选)" : "宝宝昵称"}
+            </label>
             <input
               type="text"
-              name="name"
-              defaultValue={profile.name}
+              value={localProfile.name}
+              onChange={(e) => setLocalProfile({ ...localProfile, name: e.target.value })}
               placeholder="如：糯米"
               className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
             />
           </div>
 
-          {/* Gender */}
+          {/* Gender (Optional in pregnancy) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">性别</label>
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setGender("男孩")}
+                onClick={() => setLocalProfile({ ...localProfile, gender: "男孩" })}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  profile.gender === "男孩"
+                  localProfile.gender === "男孩"
                     ? "bg-emerald-500 text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
@@ -113,9 +151,9 @@ export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
               </button>
               <button
                 type="button"
-                onClick={() => setGender("女孩")}
+                onClick={() => setLocalProfile({ ...localProfile, gender: "女孩" })}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  profile.gender === "女孩"
+                  localProfile.gender === "女孩"
                     ? "bg-emerald-500 text-white"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
@@ -125,16 +163,30 @@ export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
             </div>
           </div>
 
-          {/* Birth */}
+          {/* Date Input */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">出生日期</label>
-            <input
-              type="date"
-              name="birth"
-              defaultValue={profile.birth}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
-            />
-            <p className="mt-1.5 text-sm text-emerald-600 font-medium">{ageStr}</p>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {isPregnancy ? "预产期" : "出生日期"}
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                value={isPregnancy ? localProfile.dueDate : localProfile.birth}
+                onChange={(e) => {
+                   const val = e.target.value;
+                   if (isPregnancy) {
+                     setLocalProfile({ ...localProfile, dueDate: val });
+                   } else {
+                     setLocalProfile({ ...localProfile, birth: val });
+                   }
+                }}
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
+              />
+              <Calendar className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={18} />
+            </div>
+            <p className="mt-2 text-sm text-emerald-600 font-medium bg-emerald-50 inline-block px-2 py-1 rounded-md">
+              {isPregnancy ? "当前孕周：" : "当前月龄："}{ageDisplay}
+            </p>
           </div>
 
           {/* Special Tags */}
@@ -144,7 +196,7 @@ export default function BabyProfileModal({ isOpen, onClose, profile, onSave }) {
             </label>
             <div className="flex flex-wrap gap-2">
               {TAG_OPTIONS.map((tag) => {
-                const isSelected = (profile.tags || []).includes(tag);
+                const isSelected = (localProfile.tags || []).includes(tag);
                 return (
                   <button
                     key={tag}

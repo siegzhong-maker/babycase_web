@@ -1,5 +1,5 @@
 import { User, ChevronRight, Sparkles } from 'lucide-react';
-import { calculateAge } from '@/utils/age';
+import { calculateAge, calculatePregnancyWeeks } from '@/utils/age';
 
 export default function ContextCard({ profile, onClick }) {
   // Simple heuristic for "Cold Start" or "Unset Profile":
@@ -7,8 +7,11 @@ export default function ContextCard({ profile, onClick }) {
   const isDefaultName = profile.name === "糯米";
   const hasTags = profile.tags && profile.tags.length > 0;
   const hasInferredInfo = !!profile.stage_range || !!profile.object;
+  // If status is pregnancy and dueDate is set, it is NOT cold start
+  const isPregnancy = profile.status === 'pregnancy';
+  const hasDueDate = isPregnancy && !!profile.dueDate;
   
-  const isColdStart = isDefaultName && !hasTags && !hasInferredInfo;
+  const isColdStart = isDefaultName && !hasTags && !hasInferredInfo && !hasDueDate;
 
   if (isColdStart) {
     return (
@@ -21,8 +24,8 @@ export default function ContextCard({ profile, onClick }) {
             <Sparkles size={16} className="text-white" />
           </div>
           <div>
-            <div className="text-sm font-bold">完善宝宝档案</div>
-            <div className="text-xs text-emerald-100">告诉兜兜宝宝情况，获取专属建议</div>
+            <div className="text-sm font-bold">完善家庭档案</div>
+            <div className="text-xs text-emerald-100">告诉兜兜宝宝或孕期情况，获取专属建议</div>
           </div>
         </div>
         <ChevronRight size={18} className="text-emerald-100" />
@@ -30,8 +33,11 @@ export default function ContextCard({ profile, onClick }) {
     );
   }
 
-  // Use stage_range (inferred) if available, otherwise calculate from birth
-  const ageDisplay = profile.stage_range || calculateAge(profile.birth);
+  // Use stage_range (inferred) if available, otherwise calculate from birth/due date
+  const ageDisplay = isPregnancy
+    ? calculatePregnancyWeeks(profile.dueDate)
+    : (profile.stage_range || calculateAge(profile.birth));
+    
   const tagsStr = profile.tags?.join(" | ");
 
   return (
